@@ -12,7 +12,7 @@ using StudentCrud.Models;
 namespace StudentCrud.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250602110352_InitialCreate")]
+    [Migration("20250603043435_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -45,6 +45,11 @@ namespace StudentCrud.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.HasKey("Id");
 

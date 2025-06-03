@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace StudentCrud.Models
 {
@@ -17,5 +18,14 @@ namespace StudentCrud.Models
         [Display(Name = "Date of Birth")]
         [DataType(DataType.Date)]
         public DateTime Dob { get; set; }
+
+        [Required]
+        [DataType(DataType.Password)]
+        public string Password { get; set; }
+
+        [NotMapped]
+        [Display(Name = "New Password")]
+        [DataType(DataType.Password)]
+        public string? NewPassword { get; set; }
     }
 }
