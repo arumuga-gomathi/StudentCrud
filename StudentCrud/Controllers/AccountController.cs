@@ -49,11 +49,12 @@ namespace StudentCrud.Controllers
                     // ✅ Store JWT in Cookie
                     Response.Cookies.Append("jwt", token, new CookieOptions
                     {
-                        HttpOnly = true,          // ✅ safer against XSS
-                        Secure = true,            // ✅ works with HTTPS/IIS
+                        HttpOnly = true,
+                        Secure = Request.IsHttps,  // <-- dynamic: true for https, false for http
                         SameSite = SameSiteMode.Strict,
-                        Expires = DateTime.UtcNow.AddMinutes(30)  // match ExpiryInMinutes
+                        Expires = DateTime.UtcNow.AddHours(1)
                     });
+
 
                     return RedirectToAction("Index", "Students");
                 }
