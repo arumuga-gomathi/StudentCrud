@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using StudentCrud.Models;
 using System.IdentityModel.Tokens.Jwt;
@@ -20,32 +18,43 @@ namespace StudentCrud.Controllers
             _configuration = configuration;
         }
 
-        public IActionResult Login()
-        {
-            return View();
-        }
+        public IActionResult Login() => View();
+
+        public IActionResult Register() => View();
 
         [HttpPost]
-        public async Task<IActionResult> Login(LoginViewModel model)
+        public IActionResult Register(Student model)
         {
             if (ModelState.IsValid)
             {
-                var student = _context.Students.FirstOrDefault(s => s.Email == model.Email);
+                // ✅ Hash password before saving
+                model.Password = BCrypt.Net.BCrypt.HashPassword(model.Password);
+                _context.Students.Add(model);
+                _context.SaveChanges();
+                return RedirectToAction("Login");
+            }
+            return View(model);
+        }
+
+        [HttpPost]
+        public IActionResult Login(LoginViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var student = _context.Students.FirstOrDefault(x => x.Email == model.Email);
                 if (student != null && BCrypt.Net.BCrypt.Verify(model.Password, student.Password))
                 {
-                    // Generate JWT token
                     var token = GenerateJwtToken(student.Email);
 
-                    // Store JWT token in cookie
+                    // ✅ Store JWT in Cookie
                     Response.Cookies.Append("jwt", token, new CookieOptions
                     {
-                        HttpOnly = true,
-                        Secure = true,
+                        HttpOnly = true,          // ✅ safer against XSS
+                        Secure = true,            // ✅ works with HTTPS/IIS
                         SameSite = SameSiteMode.Strict,
-                        Expires = DateTime.UtcNow.AddHours(1)
+                        Expires = DateTime.UtcNow.AddMinutes(30)  // match ExpiryInMinutes
                     });
 
-                    // Redirect to Students page after successful login
                     return RedirectToAction("Index", "Students");
                 }
                 ModelState.AddModelError("", "Invalid credentials");
@@ -55,15 +64,15 @@ namespace StudentCrud.Controllers
 
         public IActionResult Logout()
         {
-            // Remove cookie when logout
             Response.Cookies.Delete("jwt");
             return RedirectToAction("Login");
         }
 
         private string GenerateJwtToken(string email)
         {
-            var jwtSettings = _configuration.GetSection("Jwt");
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]));
+            // ✅ Read JWT Config
+            var jwtSection = _configuration.GetSection("Jwt");
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["Key"]));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var claims = new[]
@@ -72,11 +81,12 @@ namespace StudentCrud.Controllers
             };
 
             var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Issuer"],
+                issuer: jwtSection["Issuer"],
+                audience: jwtSection["Audience"],
                 claims: claims,
-                expires: DateTime.Now.AddHours(1),
-                signingCredentials: creds);
+                expires: DateTime.UtcNow.AddMinutes(Convert.ToDouble(jwtSection["ExpiryInMinutes"])),
+                signingCredentials: creds
+            );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }

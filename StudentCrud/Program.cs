@@ -1,17 +1,19 @@
-using Microsoft.EntityFrameworkCore;
-using StudentCrud.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using StudentCrud.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add services
 builder.Services.AddControllersWithViews();
 
+// DbContext with SQL Authentication
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// JWT Auth configuration
+// JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
 
@@ -22,25 +24,31 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.SaveToken = true;
+    options.RequireHttpsMetadata = false;
+
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
-            // Read token from cookie automatically
             context.Token = context.HttpContext.Request.Cookies["jwt"];
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            context.HandleResponse();
+            context.Response.Redirect("/Account/Login");
             return Task.CompletedTask;
         }
     };
 
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Issuer"],
-        IssuerSigningKey = new SymmetricSecurityKey(key)
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ClockSkew = TimeSpan.Zero
     };
 });
 
@@ -62,5 +70,6 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Account}/{action=Login}/{id?}");
+
 
 app.Run();
